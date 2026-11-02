@@ -266,4 +266,4 @@ mail gateway. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 
-[MIT](LICENSE). Created by Rasti Salam Mohammed.
+[MIT](LICENSE). Created by Rasty49.

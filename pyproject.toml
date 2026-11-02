@@ -9,7 +9,7 @@ description = "A local IMAP/SMTP MCP connector for university and self-hosted em
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
-authors = [{name = "Rasti Salam Mohammed"}]
+authors = [{name = "Rasty49"}]
 keywords = ["mcp", "imap", "smtp", "webmail", "chatgpt", "claude", "university"]
 classifiers = [
   "Development Status :: 3 - Alpha",
