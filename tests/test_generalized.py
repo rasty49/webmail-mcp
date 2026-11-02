@@ -83,13 +83,17 @@ class SettingsTests(unittest.TestCase):
                 settings.data_dir()
 
     def test_export_keeps_virtualenv_interpreter_and_has_no_credentials(self):
+        base = Path(tempfile.gettempdir())
+        interpreter = str(base / "venv" / ("Scripts/python.exe" if os.name == "nt" else "bin/python"))
+        mail_home = str(base / "mail-data")
         with (
-            patch.object(sys, "executable", "/fake/venv/bin/python"),
-            patch.dict(os.environ, {"WEBMAIL_MCP_HOME": "/test/mail-data"}),
+            patch.object(sys, "executable", interpreter),
+            patch.dict(os.environ, {"WEBMAIL_MCP_HOME": mail_home}),
         ):
             value = settings.client_config()
         item = value["mcpServers"]["webmail"]
-        self.assertEqual(item["command"], str(Path("/fake/venv/bin/python").absolute()))
+        self.assertEqual(item["command"], interpreter)
+        self.assertEqual(item["env"]["WEBMAIL_MCP_HOME"], mail_home)
         self.assertEqual(item["args"], ["-m", "webmail_mcp", "serve"])
         self.assertNotIn("username", json.dumps(value))
         self.assertNotIn("password", json.dumps(value))
