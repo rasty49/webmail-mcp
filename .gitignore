@@ -2,6 +2,7 @@
 .env
 .env.*
 !.env.example
+credential-ids.json
 account.json
 account.tmp
 *.sqlite

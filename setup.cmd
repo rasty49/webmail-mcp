@@ -9,15 +9,17 @@ if errorlevel 1 (
 )
 if not exist ".venv\Scripts\python.exe" py -3 -m venv .venv
 if errorlevel 1 goto failed
-".venv\Scripts\python.exe" -m pip install .
+".venv\Scripts\python.exe" -I -m pip install --require-hashes --only-binary=:all: -r requirements.lock
 if errorlevel 1 goto failed
-".venv\Scripts\python.exe" -m webmail_mcp setup
+".venv\Scripts\python.exe" -I -m pip install --no-build-isolation --no-deps .
 if errorlevel 1 goto failed
-".venv\Scripts\python.exe" -m webmail_mcp check
+".venv\Scripts\python.exe" -I -m webmail_mcp setup
+if errorlevel 1 goto failed
+".venv\Scripts\python.exe" -I -m webmail_mcp check
 if errorlevel 1 goto failed
 echo.
 echo Launch settings for your MCP client:
-".venv\Scripts\python.exe" -m webmail_mcp client-config
+".venv\Scripts\python.exe" -I -m webmail_mcp client-config
 echo.
 echo See README.md to connect ChatGPT desktop or Claude Code.
 pause

@@ -24,6 +24,14 @@ entirely offline. Local draft content is not separately encrypted. Other program
 running as the same OS user may access the draft database or stored credentials.
 Use the access and data controls appropriate to your mailbox and institution.
 
+## Review and installation
+
+Version 0.1.0 launched the server and approval helper without Python import isolation. A writable project directory could shadow the approval module and bypass the review window. Upgrade to 0.1.1, add `-I` as the first Python argument in existing client settings, then restart the server. Protect the interpreter, package installation and MCP settings from modification by the agent.
+
+The setup scripts and CI verify hashes for the Python dependencies in `requirements.lock`, including build tools. Installing the project with an ordinary `pip install .` uses the package index resolver. The lock covers supported CPython instances with matching wheels.
+
+Mailbox headers, authentication claims, and extracted HTML can all mislead a client. Keep unrelated outbound tools disabled when reading mail. After a client timeout, cancel the window if still open and check the recorded draft state before taking another action.
+
 ## Report a vulnerability
 
 Use GitHub's private vulnerability reporting for this repository if the owner has

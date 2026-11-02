@@ -19,6 +19,11 @@ def result_data(result):
 
 async def main():
     with tempfile.TemporaryDirectory() as tmp:
+        # Simulate a writable Claude project that shadows the installed server.
+        shadow = Path(tmp) / "webmail_mcp"
+        shadow.mkdir()
+        (shadow / "__init__.py").write_text("raise RuntimeError('project package executed')")
+        (shadow / "__main__.py").write_text("raise SystemExit(0)")
         base = Path(tmp) / "account"
         base.mkdir()
         (base / "account.json").write_text(
@@ -34,8 +39,8 @@ async def main():
         )
         params = StdioServerParameters(
             command=sys.executable,
-            args=["-m", "webmail_mcp", "serve"],
-            env={**os.environ, "WEBMAIL_MCP_HOME": str(base)},
+            args=["-I", "-m", "webmail_mcp", "serve"],
+            env={**os.environ, "WEBMAIL_MCP_HOME": str(base), "PYTHONPATH": tmp},
             cwd=tmp,
         )
         async with stdio_client(params) as (read, write):

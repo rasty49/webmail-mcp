@@ -94,7 +94,7 @@ class SettingsTests(unittest.TestCase):
         item = value["mcpServers"]["webmail"]
         self.assertEqual(item["command"], interpreter)
         self.assertEqual(item["env"]["WEBMAIL_MCP_HOME"], mail_home)
-        self.assertEqual(item["args"], ["-m", "webmail_mcp", "serve"])
+        self.assertEqual(item["args"], ["-I", "-m", "webmail_mcp", "serve"])
         self.assertNotIn("username", json.dumps(value))
         self.assertNotIn("password", json.dumps(value))
 
@@ -189,7 +189,7 @@ class TransportTests(unittest.TestCase):
     def test_local_review_has_no_cli_approval_shortcut(self):
         with patch.object(app.subprocess, "run", return_value=MagicMock(returncode=2)) as run:
             self.assertFalse(app.approve_locally({"body": "synthetic"}))
-        self.assertEqual(run.call_args.args[0], [sys.executable, "-m", "webmail_mcp.approval"])
+        self.assertEqual(run.call_args.args[0], [sys.executable, "-I", "-m", "webmail_mcp.approval"])
         self.assertEqual(json.loads(run.call_args.kwargs["input"])["body"], "synthetic")
 
     def test_review_timeout_and_no_gui_refuse_send(self):

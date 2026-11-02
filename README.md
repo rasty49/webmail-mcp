@@ -41,6 +41,18 @@ the tools is shared with the AI service you use.
 
 ## Quick start
 
+### Upgrade an existing installation to 0.1.1
+
+Stop the MCP server. Download the updated source from this repository, then run the installation commands below from that trusted folder. On Windows, `setup.cmd` installs into its adjacent virtual environment. If you keep the same account settings, you can also update an existing installation without re-entering your passwords:
+
+```powershell
+.\.venv\Scripts\python.exe -I -m pip install --require-hashes --only-binary=:all: -r requirements.lock
+.\.venv\Scripts\python.exe -I -m pip install --no-build-isolation --no-deps .
+.\.venv\Scripts\python.exe -I -m webmail_mcp client-config
+```
+
+**Replace the saved launch arguments in every MCP client and restart it.** Updating the package alone leaves old client entries vulnerable to a project directory shadowing the server. The first argument must be `-I`. Install outside folders the AI can modify and use a dedicated virtual environment. An editable install is for development only.
+
 ### Windows
 
 1. Download or clone this repository and extract it to a private folder.
@@ -57,10 +69,11 @@ address. Use its published settings rather than assuming it equals your address.
 
 ```sh
 python3 -m venv .venv
-.venv/bin/python -m pip install .
-.venv/bin/python -m webmail_mcp setup
-.venv/bin/python -m webmail_mcp check
-.venv/bin/python -m webmail_mcp client-config
+.venv/bin/python -I -m pip install --require-hashes --only-binary=:all: -r requirements.lock
+.venv/bin/python -I -m pip install --no-build-isolation --no-deps .
+.venv/bin/python -I -m webmail_mcp setup
+.venv/bin/python -I -m webmail_mcp check
+.venv/bin/python -I -m webmail_mcp client-config
 ```
 
 You can also run `sh setup.sh` from this repository. Linux needs an unlocked
@@ -80,7 +93,7 @@ Use a version of ChatGPT desktop with local MCP support.
 Run the following using the Python in your installation:
 
 ```powershell
-.\.venv\Scripts\python.exe -m webmail_mcp client-config
+.\.venv\Scripts\python.exe -I -m webmail_mcp client-config
 ```
 
 On macOS/Linux, use `.venv/bin/python` instead. The command prints a standard
@@ -94,7 +107,7 @@ In **Settings → MCP servers → Add server**:
 | Name | `webmail` |
 | Type | `STDIO` |
 | Command | The generated `command` path, without surrounding quotes |
-| Arguments | Three separate arguments: `-m`, `webmail_mcp`, `serve` |
+| Arguments | Four separate arguments: `-I`, `-m`, `webmail_mcp`, `serve` |
 | Environment | Empty, unless you deliberately set `WEBMAIL_MCP_HOME` |
 
 Restart the server and check `/mcp`. If your client supports a tool timeout, use
@@ -103,7 +116,7 @@ Restart the server and check `/mcp`. If your client supports a tool timeout, use
 ```toml
 [mcp_servers.webmail]
 command = 'C:\path\to\webmail-mcp\.venv\Scripts\python.exe'
-args = ["-m", "webmail_mcp", "serve"]
+args = ["-I", "-m", "webmail_mcp", "serve"]
 tool_timeout_sec = 240
 ```
 
@@ -118,13 +131,13 @@ ChatGPT connector. See [OpenAI's current MCP setup guide](https://learn.chatgpt.
 Use the absolute Python path printed by `client-config`:
 
 ```sh
-claude mcp add --transport stdio --scope user webmail -- "/absolute/path/to/.venv/bin/python" -m webmail_mcp serve
+claude mcp add --transport stdio --scope user webmail -- "/absolute/path/to/.venv/bin/python" -I -m webmail_mcp serve
 ```
 
 Windows PowerShell example:
 
 ```powershell
-claude mcp add --transport stdio --scope user webmail -- "C:\path\to\webmail-mcp\.venv\Scripts\python.exe" -m webmail_mcp serve
+claude mcp add --transport stdio --scope user webmail -- "C:\path\to\webmail-mcp\.venv\Scripts\python.exe" -I -m webmail_mcp serve
 ```
 
 Then run `claude mcp get webmail` or open `/mcp` in Claude Code. The local review
@@ -146,8 +159,7 @@ compatibility beyond the documented setup and protocol tests is not certified.
 
 The sender is fixed to your locally configured email address. You review the
 exact From, To, Cc, Subject, and body in a local window and click **Send this
-email**. Cancel, close, or wait three minutes to stop the send. A chat message or
-tool parameter cannot bypass that window through this connector's API.
+email**. The window lists body length and line count and marks recipients outside the sender’s exact domain. Send becomes available when the bottom of the preview is visible. Check the whole message and every address. Cancel, close, or wait three minutes to decline. Outgoing subject and body reject control and Unicode format characters, including invisible directional overrides. Body text accepts newlines and tabs.
 
 ## Provider settings
 
@@ -212,12 +224,16 @@ broad shell/computer access may be able to access the same credential store.
 Do not describe this as an air gap or a guarantee that other local tools cannot
 retrieve credentials. See [SECURITY.md](SECURITY.md).
 
+For mailbox reading, use a dedicated chat or client profile with shell, web fetch, outbound connectors, and computer-control tools disabled. A malicious message can ask the client to send mailbox data through any other tool it can access. The local window covers only SMTP delivery through Webmail MCP.
+
 ## Limits and delivery behavior
 
 - One configured account per application data directory. No OAuth flow, EWS,
   Graph API, browser login, or account provisioning.
 - Reads do not mark messages as read. HTML is reduced to text without fetching
   remote images or opening links. Attachments are not exposed as tools.
+- For multipart mail, the reader prefers text extracted from HTML and warns when the plain alternative differs after whitespace normalization. It skips common inline hiding styles and hidden elements. Stylesheets, inherited styles and differences between mail clients can still affect what a person sees.
+- Sender-provided headers and body fields are enclosed by matching untrusted-email markers. The returned Authentication-Results fields are unverified header text. A sender can forge them. Confirm sensitive requests independently.
 - Full messages above 5 MiB are refused; body output is capped at 40,000 characters.
 - Outgoing mail is new plain-text email with To/Cc. Attachments, Bcc, rich text,
   automatic signatures and reply-threading headers are not implemented.
@@ -227,6 +243,7 @@ retrieve credentials. See [SECURITY.md](SECURITY.md).
 - SMTP acceptance isn't proof the recipient read or received the email. A network
   loss during delivery can leave state `delivery_uncertain`; repeats are blocked.
   Check before preparing a duplicate. Partial delivery is also blocked from repeat.
+- If the client times out, **cancel any still-open window** and check `local_draft_status` before preparing another draft. When the client sends a cancellation during review, a late click cannot start delivery. A silent client timeout is invisible to the server, and SMTP already in progress may complete.
 - Closing a client during review or delivery may leave a draft `reviewing` or
   `sending`. These states are deliberately blocked from automatic retries.
 - Non-ASCII search terms require server support for UTF-8 IMAP SEARCH. Basic
@@ -242,7 +259,8 @@ webmail-mcp forget
 
 Use the executable in your virtual environment if it isn't on PATH. This removes
 saved credentials for the current configuration and its account file. Draft
-history remains until you delete the application data directory. Before changing
+history remains by default. To delete local message bodies and delivery history too, stop every Webmail MCP server and run `webmail-mcp forget --all`. This removes the local database and its sidecar files. Copies in backups, chat history and the mailbox have separate retention.
+New setups save a private index of opaque credential IDs so cleanup can recover from a damaged account file. Run setup once after upgrading to create this index for an existing account. For older installations with a damaged account file and no index, remove the Webmail-MCP entries in your OS credential manager, then remove the damaged account file. Before changing
 to a different account or server, forget the old account to avoid orphaned secrets.
 
 The older RUB-specific connector is independent. Generalizing this repository

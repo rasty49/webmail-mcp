@@ -8,6 +8,7 @@ import os
 from pathlib import Path
 import re
 import sys
+import tempfile
 
 SERVICE = "Webmail-MCP"
 
@@ -116,13 +117,19 @@ def config():
 
 
 def write_config(value):
-    value = validate_config(value)
-    path = private_dir() / "account.json"
-    temp = path.with_suffix(".tmp")
-    fd = os.open(temp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-    with os.fdopen(fd, "w", encoding="utf-8") as handle:
-        handle.write(json.dumps(value, indent=2) + "\n")
-    os.replace(temp, path)
+    write_private_json("account.json", validate_config(value))
+
+
+def write_private_json(name, value):
+    path = private_dir() / name
+    fd, temp = tempfile.mkstemp(dir=path.parent)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            json.dump(value, handle, indent=2)
+            handle.write("\n")
+        os.replace(temp, path)
+    finally:
+        Path(temp).unlink(missing_ok=True)
 
 
 def secure_keyring():
@@ -181,29 +188,66 @@ def credentials(protocol="imap"):
 
 def save_credentials(c, imap_password, smtp_password):
     ring = secure_keyring()
+    # Record opaque lookup keys before the first write so interrupted setup
+    # and a damaged account.json can both be cleaned up without a password.
+    keys = recovery_keys() | {credential_key(c, p) for p in ("imap", "smtp")}
+    write_private_json("credential-ids.json", sorted(keys))
     ring.set_password(SERVICE, credential_key(c, "imap"), imap_password)
     ring.set_password(SERVICE, credential_key(c, "smtp"), smtp_password)
     write_config(c)
 
 
-def forget_account():
-    c = config()
-    ring = secure_keyring()
-    import keyring.errors
+def recovery_keys():
+    try:
+        keys = json.loads((data_dir() / "credential-ids.json").read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return set()
+    except (OSError, ValueError):
+        raise MailError(
+            "Cannot read the credential index. Check Webmail-MCP entries in your OS credential manager."
+        ) from None
+    if not isinstance(keys, list) or not all(
+        isinstance(k, str) and re.fullmatch(r"(imap|smtp):[a-f0-9]{64}", k) for k in keys
+    ):
+        raise MailError("Damaged credential index. Check Webmail-MCP entries in your OS credential manager.")
+    return set(keys)
 
-    for protocol in ("imap", "smtp"):
+
+def forget_account(purge_drafts=False):
+    base = data_dir()
+    path = base / "account.json"
+    keys = recovery_keys()
+    if path.exists():
         try:
-            ring.delete_password(SERVICE, credential_key(c, protocol))
-        except keyring.errors.PasswordDeleteError:
-            pass
-    (data_dir() / "account.json").unlink()
+            c = config()
+            keys.update(credential_key(c, p) for p in ("imap", "smtp"))
+        except MailError:
+            if not keys:
+                raise MailError(
+                    "Cannot identify credentials for this damaged older configuration. Remove Webmail-MCP entries in your OS credential manager, then remove account.json locally."
+                ) from None
+    if keys:
+        ring = secure_keyring()
+        from keyring.errors import PasswordDeleteError
+
+        for key in keys:
+            try:
+                ring.delete_password(SERVICE, key)
+            except PasswordDeleteError:
+                if ring.get_password(SERVICE, key) is not None:
+                    raise MailError("Credential removal failed. Unlock the OS credential store and retry.") from None
+    path.unlink(missing_ok=True)
+    (base / "credential-ids.json").unlink(missing_ok=True)
+    if purge_drafts:
+        for suffix in ("", "-wal", "-shm", "-journal"):
+            (base / ("drafts.sqlite3" + suffix)).unlink(missing_ok=True)
 
 
 def client_config():
     """Generate launch settings only; no mailbox login or password is exported."""
     # Do not resolve a venv Python symlink to the system interpreter: that would
     # lose access to the installed package and its dependencies.
-    result = {"command": str(Path(sys.executable).absolute()), "args": ["-m", "webmail_mcp", "serve"]}
+    result = {"command": str(Path(sys.executable).absolute()), "args": ["-I", "-m", "webmail_mcp", "serve"]}
     if os.environ.get("WEBMAIL_MCP_HOME"):
         result["env"] = {"WEBMAIL_MCP_HOME": str(data_dir())}
     return {"mcpServers": {"webmail": result}}
