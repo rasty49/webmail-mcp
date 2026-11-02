@@ -1,0 +1,27 @@
+name: Provider compatibility
+description: Report a compatible provider or a connection problem, without personal data.
+body:
+  - type: input
+    id: provider
+    attributes:
+      label: University or mail provider
+    validations:
+      required: true
+  - type: input
+    id: documentation
+    attributes:
+      label: Official IMAP/SMTP instructions URL
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment and tested actions
+      description: OS, Python version, MCP client, and whether you tested listing, reading, or sending.
+    validations:
+      required: true
+  - type: textarea
+    id: result
+    attributes:
+      label: Result
+      description: Do not include passwords, usernames, email addresses, private message content, or inbox screenshots.

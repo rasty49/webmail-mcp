@@ -1,0 +1,4 @@
+include README.md LICENSE CHANGELOG.md SECURITY.md CONTRIBUTING.md
+include setup.cmd setup.sh
+recursive-include tests *.py
+global-exclude *.sqlite3 *.sqlite3-* *.eml *.mbox

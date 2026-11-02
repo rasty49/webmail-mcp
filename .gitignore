@@ -1,0 +1,37 @@
+# Credentials and local mailbox data: never commit.
+.env
+.env.*
+!.env.example
+account.json
+account.tmp
+*.sqlite
+*.sqlite3
+*.sqlite3-*
+*.db
+*.db-*
+*.eml
+*.mbox
+*.pem
+*.key
+mcp-settings.json
+mcp-config.toml
+.mcp.json
+.claude.json
+.codex/
+client-config.json
+
+# Python/build/editor files
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.DS_Store
+.idea/
+.vscode/
